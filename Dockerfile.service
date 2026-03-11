@@ -1,0 +1,9 @@
+FROM alpine AS build
+# since scratch image doesn't have certificates, need to take public certificates from alpine
+# scratch is the smallest image possible, it doesn't have any OS
+FROM scratch
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+COPY ./bin/linux/amd64/reservation  /reservation 
+
+CMD ["/reservation"]

@@ -1,0 +1,247 @@
+syntax = "proto3";
+
+package reservation.api.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "TODO: update the go package path";
+
+// CreateReservationRequest reserves multiple resources for a certain duration.
+message CreateReservationRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {example: '{"resources": [{"resource_id": "ad3e6c21-071f-4d08-ad3c-f770f76693cc", "quantity": 1, "configuration": { "pcoip_graphics_card": "amd_g4ad.4xlarge"} }, {"resource_id": "5428084e-9287-4ba7-bc47-dd73bfa3d519", "quantity": 2}], "duration": {"seconds": 3000}}'};
+
+  // Requesting a resource.
+  message Resource {
+    // The ID of the resource.
+    string resource_id = 1;
+
+    // The number of this particular resource to reserve.
+    int32 quantity = 2;
+
+    // Optional configuration for this resource type.
+    map<string, string> configuration = 3;
+  }
+
+  // The IDs of the resources to reserve.
+  repeated Resource resource_ids = 1;
+
+  // The duration of the reservation in seconds.
+  google.protobuf.Duration duration = 2;
+}
+
+// CreateReservationResponse is the response from a reservation operation.
+message CreateReservationResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {example: '{"data": {"reservation_id": "fc3d8ff4-2e5d-469d-965a-90b6bd2b790b"}}'};
+
+  // Response Data
+  message CreateReservationResponseData {
+    // The ID of the reservation.
+    string reservation_id = 1;
+  }
+
+  // Response code
+  int32 code = 1;
+
+  // Response status
+  string status = 2;
+
+  // Response data
+  CreateReservationResponseData data = 3;
+}
+
+// GetReservationRequest is a request to get the information of a reservation.
+message GetReservationRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {example: '{"reservation_id": "fc3d8ff4-2e5d-469d-965a-90b6bd2b790b"}'};
+
+  // The ID of the reservation.
+  string reservation_id = 1;
+}
+
+// ReserveStatusResponse contains the status of a reservation.
+message GetReservationResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {example: '{"data": {"reserved_resources": [{"resource_id": "fc3d8ff4-2e5d-469d-965a-90b6bd2b790b", "instance_id": "bb72839b-edab-4c30-99cc-be31644809a3", "status": "RESERVED"}], "status": "RESERVATION_STATUS_RESERVED"}}'};
+
+  // ReservationStatus represents the status of a reservation.
+  enum ReservationStatus {
+    // RESERVATION_STATUS_UNSPECIFIED is the default status of a reservation when no other status is specified.
+    RESERVATION_STATUS_UNSPECIFIED = 0;
+
+    // RESERVATION_STATUS_PENDING indicates that the reservation is being processed.
+    RESERVATION_STATUS_PENDING = 1;
+
+    // RESERVATION_STATUS_RESERVING indicates that the resources for the reservation are being prepared.
+    // This might involve operations like allocating resources, setting up environments, etc.
+    RESERVATION_STATUS_RESERVING = 2;
+
+    // RESERVATION_STATUS_RESERVED indicates that all the resources have been successfully prepared and the reservation is active.
+    RESERVATION_STATUS_RESERVED = 3;
+
+    // RESERVATION_STATUS_FAILED indicates that there was a problem with setting up the reservation,
+    // such as not being able to allocate the necessary resources.
+    RESERVATION_STATUS_FAILED = 4;
+
+    // RESERVATION_STATUS_RELEASING indicates that the reservation is in the process of being terminated.
+    // This might involve operations like deallocating resources, tearing down environments, etc.
+    RESERVATION_STATUS_RELEASING = 5;
+
+    // RESERVATION_STATUS_CLOSED indicates that the reservation has been successfully terminated and all resources have been released.
+    RESERVATION_STATUS_CLOSED = 6;
+
+    // RESERVATION_STATUS_RECONCILIATION_FAILED indicates that the system attempted to clean-up the resources from a failed reservation,
+    // but encountered an issue during the cleanup of at least one resource.
+    RESERVATION_STATUS_RECONCILIATION_FAILED = 7;
+
+    // RESERVATION_STATUS_CLEANING_UP indicates that the system is attempting to recover by clean-up the resources from a failed or expired reservation.
+    RESERVATION_STATUS_CLEANING_UP = 8;
+  }
+
+  // ReservedResource contains the status of a reserved resource.
+  message ReservationResource {
+    // The ID of the resource.
+    string resource_id = 1;
+
+    // The instance ID of the resource.
+    string instance_id = 2;
+
+    // The status of the resource.
+    string status = 3;
+  }
+
+  // Response Data
+  message GetReservationResponseData {
+    // a list of reserved resources.
+    repeated ReservationResource reservation_resources = 1;
+
+    // The status of the reservation.
+    ReservationStatus status = 2;
+
+    // The time when the reservation is created.
+    google.protobuf.Timestamp created_at = 3;
+
+    // The time when the reservation is started.
+    google.protobuf.Timestamp start_time = 4;
+
+    // The time when the reservation is expired.
+    google.protobuf.Timestamp end_time = 5;
+  }
+
+  // Response code
+  int32 code = 1;
+
+  // Response status
+  string status = 2;
+
+  // Response data
+  GetReservationResponseData data = 3;
+}
+
+// ReleaseReservationRequest is a request to release a reservation.
+message ReleaseReservationRequest {
+  // The ID of the reservation.
+  string reservation_id = 1;
+}
+
+// ReleaseReservationResponse is the response from a release operation.
+message ReleaseReservationResponse {
+  // Response code
+  int32 code = 1;
+
+  // Response status
+  string status = 2;
+}
+
+
+// UpdateReservationDurationRequest is a request to update the duration of a reservation.
+message UpdateReservationDurationRequest {
+  // The ID of the reservation.
+  string reservation_id = 1;
+
+  // The duration of the reservation in seconds.
+  google.protobuf.Duration duration = 2;
+}
+
+// UpdateReservationDurationResponse is the response from a update duration operation.
+message UpdateReservationDurationResponse {
+  // Response code
+  int32 code = 1;
+
+  // Response status
+  string status = 2;
+}
+
+// The ReservationService provides operations for managing resource reservations.
+service ReservationService {
+  // CreateReservation reserves specified resources for a certain duration.
+  rpc CreateReservation(CreateReservationRequest) returns (CreateReservationResponse) {
+    // The HTTP annotation specifies the path, http method and body mapping.
+    option (google.api.http) = {
+      post: "/api/v1/reservations"
+      body: "*"
+    };
+
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      responses: [
+        {
+          key: "default",
+          value: {
+            examples: {
+              key: "application/json",
+              value: '{"code": 3, "message": "Invalid argument", "details": [{"@type": "type.googleapis.com/google.rpc.BadRequest", "fieldViolations": [{"field": "resources[0].resource_id", "description": "Invalid resource ID"}]}]}'
+            }
+          }
+        }
+      ]
+    };
+  }
+
+  // GetReservation retrieves the information of a reservation.
+  rpc GetReservation(GetReservationRequest) returns (GetReservationResponse) {
+    // The HTTP annotation specifies the path, http method and body mapping.
+    option (google.api.http) = {get: "/api/v1/reservations/{reservation_id}"};
+
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      responses: [
+        {
+          key: "default",
+          value: {
+            examples: {
+              key: "application/json",
+              value: '{"code": 5, "message": "Not Found", "details": [{"@type": "type.googleapis.com/google.rpc.ResourceInfo", "resourceType": "reservation.v1.ReservationService", "resourceName": "GetReservation"}]}'
+            }
+          }
+        }
+      ]
+    };
+  }
+
+  // ReservationStatus gets the status of a reservation.
+  rpc ReleaseReservation(ReleaseReservationRequest) returns (ReleaseReservationResponse) {
+    // The HTTP annotation specifies the path, http method and body mapping.
+    option (google.api.http) = {delete: "/api/v1/reservations/{reservation_id}"};
+
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      responses: [
+        {
+          key: "default",
+          value: {
+            examples: {
+              key: "application/json",
+              value: '{"code": 5, "message": "Not Found", "details": [{"@type": "type.googleapis.com/google.rpc.ResourceInfo", "resourceType": "reservation.v1.ReservationService", "resourceName": "GetReservation"}]}'
+            }
+          }
+        }
+      ]
+    };
+  }
+
+  rpc UpdateReservationDuration(UpdateReservationDurationRequest) returns (UpdateReservationDurationResponse) {
+    // The HTTP annotation specifies the path, http method and body mapping.
+    option (google.api.http) = {
+      patch: "/api/v1/reservations/{reservation_id}"
+      body: "*"
+    };
+  }
+}

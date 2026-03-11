@@ -1,0 +1,67 @@
+services:
+  reservation:
+    image: golang:1.24
+    ports:
+      - "50051:50051"
+    volumes:
+      - .:/reservation
+      - go-cache:/go/pkg/mod
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt
+    working_dir: /reservation
+    environment:
+      - ENV=dev
+      - APPLICATION_PORT=50051
+      # DB
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=postgres
+      - DB_PORT=5432
+      # KAFKA
+      - KAFKA_BROKERS=kafka:9092
+      # Cleanup
+      - TIMER_INTERVAL_IN_SECONDS="${TIMER_INTERVAL_IN_SECONDS:-600}"
+      - CLEANUP_SIZE="${CLEANUP_SIZE:-40}"
+    command: sh -c 'go run cmd/main.go'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka setup
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  go-cache:
