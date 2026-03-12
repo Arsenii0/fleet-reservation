@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	// pb "" TODO ArsenP : update the generated protobuf package import path
+	pb "github.com/arsen/fleet-reservation/gen/reservation/api/v1"
 	"github.com/arsen/fleet-reservation/internal/core/domain"
 	"github.com/arsen/fleet-reservation/internal/core/ports"
 	"github.com/google/uuid"
@@ -59,7 +59,7 @@ func (g *GrpcAdapter) Stop() {
 
 func (g *GrpcAdapter) CreateReservation(ctx context.Context, req *pb.CreateReservationRequest) (*pb.CreateReservationResponse, error) {
 	var resources []domain.ReservationResource
-	for _, r := range req.GetResourceIds() {
+	for _, r := range req.GetResources() {
 		resourceID, err := uuid.Parse(r.GetResourceId())
 		if err != nil {
 			return nil, fmt.Errorf("invalid resource_id %q: %w", r.GetResourceId(), err)
@@ -109,7 +109,7 @@ func (g *GrpcAdapter) GetReservation(ctx context.Context, req *pb.GetReservation
 		pbResources = append(pbResources, &pb.GetReservationResponse_ReservationResource{
 			ResourceId: r.ResourceID.String(),
 			InstanceId: r.InstanceID.String(),
-			Status:     string(r.InstateState),
+			Status:     string(r.InstanceState),
 		})
 	}
 

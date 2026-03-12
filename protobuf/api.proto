@@ -7,7 +7,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 
-option go_package = "TODO: update the go package path";
+option go_package = "github.com/arsen/fleet-reservation/gen/reservation/api/v1;reservationv1";
 
 // CreateReservationRequest reserves multiple resources for a certain duration.
 message CreateReservationRequest {
@@ -25,8 +25,8 @@ message CreateReservationRequest {
     map<string, string> configuration = 3;
   }
 
-  // The IDs of the resources to reserve.
-  repeated Resource resource_ids = 1;
+  // The resources to reserve.
+  repeated Resource resources = 1;
 
   // The duration of the reservation in seconds.
   google.protobuf.Duration duration = 2;
@@ -90,12 +90,8 @@ message GetReservationResponse {
     // RESERVATION_STATUS_CLOSED indicates that the reservation has been successfully terminated and all resources have been released.
     RESERVATION_STATUS_CLOSED = 6;
 
-    // RESERVATION_STATUS_RECONCILIATION_FAILED indicates that the system attempted to clean-up the resources from a failed reservation,
-    // but encountered an issue during the cleanup of at least one resource.
-    RESERVATION_STATUS_RECONCILIATION_FAILED = 7;
-
     // RESERVATION_STATUS_CLEANING_UP indicates that the system is attempting to recover by clean-up the resources from a failed or expired reservation.
-    RESERVATION_STATUS_CLEANING_UP = 8;
+    RESERVATION_STATUS_CLEANING_UP = 7;
   }
 
   // ReservedResource contains the status of a reserved resource.

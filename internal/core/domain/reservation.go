@@ -102,7 +102,7 @@ type ReservationResource struct {
 	// ID of the instance. Can be empty if the instance is not yet deployed.
 	InstanceID uuid.UUID `json:"instance_id"`
 	// Status of the instance. Can be empty if the instance is not yet deployed.
-	InstateState InstanceState `json:"instance_state"`
+	InstanceState InstanceState `json:"instance_state"`
 	// Map of User configuration parameters for the resource.
 	UserConfig map[string]interface{} `json:"user_config"`
 }

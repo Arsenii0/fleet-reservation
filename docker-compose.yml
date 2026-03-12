@@ -1,12 +1,11 @@
 services:
   reservation:
-    image: golang:1.24
+    image: golang:1.25
     ports:
       - "50051:50051"
     volumes:
       - .:/reservation
       - go-cache:/go/pkg/mod
-      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt
     working_dir: /reservation
     environment:
       - ENV=dev
@@ -20,11 +19,13 @@ services:
       # KAFKA
       - KAFKA_BROKERS=kafka:9092
       # Cleanup
-      - TIMER_INTERVAL_IN_SECONDS="${TIMER_INTERVAL_IN_SECONDS:-600}"
-      - CLEANUP_SIZE="${CLEANUP_SIZE:-40}"
-    command: sh -c 'go run cmd/main.go'
+      - TIMER_INTERVAL_IN_SECONDS=${TIMER_INTERVAL_IN_SECONDS:-600}
+      - CLEANUP_SIZE=${CLEANUP_SIZE:-40}
+    command: go run cmd/main.go
     depends_on:
       db:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
 
   db:

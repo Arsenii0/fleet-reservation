@@ -22,7 +22,7 @@ func (sa Adapter) toDomainReservation(reservation Reservation) domain.Reservatio
 			ReservationID:            resource.ReservationID,
 			ResourceID:               resource.ResourceID,
 			InstanceID:               resource.InstanceID,
-			InstateState:             domain.InstanceState(resource.InstateState),
+			InstanceState:            domain.InstanceState(resource.InstanceState),
 			UserConfig:               userConfig,
 		})
 	}

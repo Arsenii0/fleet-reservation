@@ -170,8 +170,8 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 		// state based on the provided instance state.
 		if request.ResourceID == uuid.Nil {
 			if request.InstanceID == uuid.Nil {
-				if res.InstateState != request.InstanceState {
-					reservationResources[i].InstateState = request.InstanceState
+				if res.InstanceState != request.InstanceState {
+					reservationResources[i].InstanceState = request.InstanceState
 					return reservationResources, nil
 				}
 			}
@@ -179,7 +179,7 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 
 		if res.ResourceID == request.ResourceID {
 			if res.InstanceID == request.InstanceID {
-				reservationResources[i].InstateState = request.InstanceState
+				reservationResources[i].InstanceState = request.InstanceState
 				return reservationResources, nil
 			}
 
@@ -192,7 +192,7 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 
 	// If no InstanceID from the message exists, update the ReservationResource with an empty InstanceID
 	if emptyInstanceResource != nil {
-		emptyInstanceResource.InstateState = request.InstanceState
+		emptyInstanceResource.InstanceState = request.InstanceState
 		emptyInstanceResource.InstanceID = request.InstanceID
 		return reservationResources, nil
 	}
@@ -208,10 +208,10 @@ func GetUpdatedReservationStatus(resources []domain.ReservationResource) (domain
 
 	allReserved := true
 	for _, res := range resources {
-		if res.InstateState == domain.InstanceStateError {
+		if res.InstanceState == domain.InstanceStateError {
 			return domain.ReservationStatusFailed, nil
 		}
-		if res.InstateState != domain.InstanceStateReserved {
+		if res.InstanceState != domain.InstanceStateReserved {
 			allReserved = false
 		}
 	}

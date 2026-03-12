@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -95,16 +96,14 @@ func connectToDatabase() (*db.Adapter, error) {
 
 	dbAdapter, err := db.NewDBAdapter(config.GetDBEnv())
 
-	// catch all errors
 	if err != nil {
-		// Check error message instead of using errors.Is
-		switch err.Error() {
-		case domain.ErrDBConnection.Error():
-			return nil, fmt.Errorf("failed to connect to database. Error: %v", err)
-		case domain.ErrDBExtension.Error():
-			return nil, fmt.Errorf("failed to create database extension. Error: %v", err)
+		switch {
+		case errors.Is(err, domain.ErrDBConnection):
+			return nil, fmt.Errorf("failed to connect to database: %w", err)
+		case errors.Is(err, domain.ErrDBExtension):
+			return nil, fmt.Errorf("failed to create database extension: %w", err)
 		default:
-			return nil, fmt.Errorf("failed to connect to database. Error: %v", err)
+			return nil, fmt.Errorf("failed to connect to database: %w", err)
 		}
 	}
 

@@ -31,7 +31,7 @@ type ReservationResource struct {
 	ReservationID         uuid.UUID       `gorm:"type:uuid;not null;foreignkey:ReservationID"`
 	ResourceID            uuid.UUID       `gorm:"type:uuid;not null"`
 	InstanceID            uuid.UUID       `gorm:"type:uuid"`
-	InstateState          string          `gorm:"not null"`
+	InstanceState         string          `gorm:"not null"`
 	UserConfig            json.RawMessage `gorm:"type:jsonb"`
 }
 
@@ -64,9 +64,9 @@ func (sa Adapter) Add(ctx context.Context, reservation *domain.Reservation) erro
 		}
 
 		resources = append(resources, ReservationResource{
-			ResourceID:   resource.ResourceID,
-			InstateState: string(resource.InstateState),
-			UserConfig:   userConfigJSON,
+			ResourceID:    resource.ResourceID,
+			InstanceState: string(resource.InstanceState),
+			UserConfig:    userConfigJSON,
 		})
 	}
 	reservationModel := Reservation{
@@ -105,7 +105,7 @@ func (sa Adapter) Update(ctx context.Context, reservation *domain.Reservation) e
 			ReservationID:         resource.ReservationID,
 			ResourceID:            resource.ResourceID,
 			InstanceID:            resource.InstanceID,
-			InstateState:          string(resource.InstateState),
+			InstanceState:         string(resource.InstanceState),
 			UserConfig:            userConfigJSON,
 		})
 
@@ -148,7 +148,7 @@ func (sa Adapter) List(ctx context.Context) ([]*domain.Reservation, error) {
 				ReservationID:            resource.ReservationID,
 				ResourceID:               resource.ResourceID,
 				InstanceID:               resource.InstanceID,
-				InstateState:             domain.InstanceState(resource.InstateState),
+				InstanceState:            domain.InstanceState(resource.InstanceState),
 			})
 		}
 		reservation := domain.Reservation{
