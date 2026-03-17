@@ -10,7 +10,7 @@ echo "==> Generating protobuf..."
 docker run --rm \
   -v "$ROOT":/reservation \
   -v "$HOME/.cache/buf":/root/.cache/buf \
-  -w /reservation/protobuf \
+  -w /reservation/reservation/protobuf \
   fleet-reservation-dev \
   sh -c 'buf generate'
 

@@ -21,7 +21,7 @@ services:
       # Cleanup
       - TIMER_INTERVAL_IN_SECONDS=${TIMER_INTERVAL_IN_SECONDS:-600}
       - CLEANUP_SIZE=${CLEANUP_SIZE:-40}
-    command: go run cmd/main.go
+    command: go run reservation/cmd/main.go
     depends_on:
       db:
         condition: service_healthy
@@ -63,6 +63,21 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  fleet-deployer:
+    image: golang:1.25
+    volumes:
+      - .:/reservation
+      - go-cache:/go/pkg/mod
+    working_dir: /reservation
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - SERVICE_NAME=fleet-deployer
+      - KAFKA_GROUP_ID=FLEET_DEPLOYER_GROUP
+    command: go run fleet-deployer/cmd/main.go
+    depends_on:
+      kafka:
+        condition: service_healthy
 
 volumes:
   go-cache:
