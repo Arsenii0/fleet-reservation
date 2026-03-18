@@ -1,0 +1,31 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build outputs
+/bin/
+/dist/
+
+# Generated protobuf files
+/gen/
+
+# Test cache
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
