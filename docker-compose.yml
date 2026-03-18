@@ -3,6 +3,7 @@ services:
     image: golang:1.25
     ports:
       - "50051:50051"
+      - "8080:8080"
     volumes:
       - .:/reservation
       - go-cache:/go/pkg/mod
@@ -36,6 +37,8 @@ services:
       - POSTGRES_DB=postgres
     ports:
       - "5432:5432"
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s

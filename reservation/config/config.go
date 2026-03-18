@@ -17,6 +17,7 @@ type AppConfig struct {
 	DBPassword      string
 	DBName          string
 	ApplicationPort int
+	HTTPPort        int
 	KafkaBrokers    []string
 	KafkaGroupID    string
 	TimerInterval   time.Duration
@@ -83,6 +84,9 @@ func LoadConfig() (*AppConfig, error) {
 		return nil, err
 	}
 	if cfg.ApplicationPort, err = getEnvInt("APPLICATION_PORT", 50051); err != nil {
+		return nil, err
+	}
+	if cfg.HTTPPort, err = getEnvInt("HTTP_PORT", 8080); err != nil {
 		return nil, err
 	}
 	if cfg.CleanupSize, err = getEnvInt("CLEANUP_SIZE", 20); err != nil {

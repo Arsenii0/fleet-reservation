@@ -12,4 +12,5 @@ type DBPort interface {
 	Add(ctx context.Context, reservation *domain.Reservation) error
 	Update(ctx context.Context, reservation *domain.Reservation) error
 	List(ctx context.Context) ([]*domain.Reservation, error)
+	ListResources(ctx context.Context) ([]domain.Resource, error)
 }

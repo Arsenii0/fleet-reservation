@@ -158,42 +158,42 @@ func (app CoreApplication) UpdateReservationStatusRequest(ctx context.Context, r
 }
 
 func GetUpdatedReservationResources(reservationResources []domain.ReservationResource, request kafkaevents.InstanceStatusUpdate) ([]domain.ReservationResource, error) {
-	// Keep track of a ReservationResource with an empty InstanceID
 	var emptyInstanceResource *domain.ReservationResource
 
-	// Look for a ReservationResource with the InstanceID from the message
 	for i, res := range reservationResources {
-		// Handle the case where the ResourceID is zero
-		// If there is no specific instance assigned to the reservation request, .
-		// This means the resource manager does not know the specific ResourceID.
-		// It returns ResourceID and InstanceID might be zero (Nil UUID)
-		// We need to handle this case appropriately by updating the reservation
-		// state based on the provided instance state.
-		if request.ResourceID == uuid.Nil {
-			if request.InstanceID == uuid.Nil {
-				if res.InstanceState != request.InstanceState {
-					reservationResources[i].InstanceState = request.InstanceState
-					reservationResources[i].IPAddress = request.IPAddress
-					return reservationResources, nil
-				}
+		// Both nil: update the first resource whose state differs (generic broadcast)
+		if request.ResourceID == uuid.Nil && request.InstanceID == uuid.Nil {
+			if res.InstanceState != request.InstanceState {
+				reservationResources[i].InstanceState = request.InstanceState
+				reservationResources[i].IPAddress = request.IPAddress
+				return reservationResources, nil
 			}
+			continue
 		}
 
+		// ResourceID nil but InstanceID set (e.g. release response): match by InstanceID only
+		if request.ResourceID == uuid.Nil && request.InstanceID != uuid.Nil {
+			if res.InstanceID == request.InstanceID {
+				reservationResources[i].InstanceState = request.InstanceState
+				reservationResources[i].IPAddress = request.IPAddress
+				return reservationResources, nil
+			}
+			continue
+		}
+
+		// Normal case: match by ResourceID + InstanceID
 		if res.ResourceID == request.ResourceID {
 			if res.InstanceID == request.InstanceID {
 				reservationResources[i].InstanceState = request.InstanceState
 				reservationResources[i].IPAddress = request.IPAddress
 				return reservationResources, nil
 			}
-
-			// Record the first ReservationResource with an empty InstanceID
 			if res.InstanceID == uuid.Nil && emptyInstanceResource == nil {
 				emptyInstanceResource = &reservationResources[i]
 			}
 		}
 	}
 
-	// If no InstanceID from the message exists, update the ReservationResource with an empty InstanceID
 	if emptyInstanceResource != nil {
 		emptyInstanceResource.InstanceState = request.InstanceState
 		emptyInstanceResource.InstanceID = request.InstanceID
@@ -201,7 +201,6 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 		return reservationResources, nil
 	}
 
-	// If there are no empty InstanceIDs and the InstanceID from the message doesn't exist, return an error
 	return nil, fmt.Errorf("no suitable ReservationResource found for updating")
 }
 
@@ -211,19 +210,33 @@ func GetUpdatedReservationStatus(resources []domain.ReservationResource) (domain
 	}
 
 	allReserved := true
+	allReleased := true
+	hasAnyReleased := false
+
 	for _, res := range resources {
-		if res.InstanceState == kafkaevents.InstanceStateError {
+		switch res.InstanceState {
+		case kafkaevents.InstanceStateError:
 			return domain.ReservationStatusFailed, nil
-		}
-		if res.InstanceState != kafkaevents.InstanceStateReserved {
+		case kafkaevents.InstanceStateReserved:
+			allReleased = false
+		case kafkaevents.InstanceStateReleased:
 			allReserved = false
+			hasAnyReleased = true
+		default: // Pending, Deploying
+			allReserved = false
+			allReleased = false
 		}
 	}
 
 	if allReserved {
 		return domain.ReservationStatusReserved, nil
 	}
-
+	if allReleased {
+		return domain.ReservationStatusClosed, nil
+	}
+	if hasAnyReleased {
+		return domain.ReservationStatusReleasing, nil
+	}
 	return domain.ReservationStatusReserving, nil
 }
 
@@ -233,4 +246,8 @@ func (app CoreApplication) ListAllReservations(ctx context.Context) ([]*domain.R
 		return nil, err
 	}
 	return reservations, nil
+}
+
+func (app CoreApplication) ListResources(ctx context.Context) ([]domain.Resource, error) {
+	return app.db.ListResources(ctx)
 }

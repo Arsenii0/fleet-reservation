@@ -12,6 +12,7 @@ import (
 	"github.com/arsen/fleet-reservation/reservation/config"
 	"github.com/arsen/fleet-reservation/reservation/internal/adapters/api"
 	"github.com/arsen/fleet-reservation/reservation/internal/adapters/db"
+	"github.com/arsen/fleet-reservation/reservation/internal/adapters/httpapi"
 	"github.com/arsen/fleet-reservation/reservation/internal/adapters/message"
 	"github.com/arsen/fleet-reservation/reservation/internal/adapters/timer"
 	"github.com/arsen/fleet-reservation/reservation/internal/core/application"
@@ -47,6 +48,9 @@ func main() {
 
 	// Core application
 	apiApp := application.NewCoreApplication(dbAdapter, messageSender)
+
+	httpAdapter := httpapi.NewHttpAdapter(apiApp, cfg.HTTPPort)
+	go httpAdapter.Run()
 
 	grpcAdapter := api.NewGrpcAdapter(apiApp, cfg.ApplicationPort)
 	if cfg.Env == "dev" || cfg.Env == "test" {

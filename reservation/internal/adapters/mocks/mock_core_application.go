@@ -64,3 +64,11 @@ func (m *MockCoreApplicationPort) CleanUpReservation(ctx context.Context, reserv
 	ret := m.Called(ctx, reservationId)
 	return ret.Error(0)
 }
+
+func (m *MockCoreApplicationPort) ListResources(ctx context.Context) ([]domain.Resource, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	ret := m.Called(ctx)
+	return ret.Get(0).([]domain.Resource), ret.Error(1)
+}

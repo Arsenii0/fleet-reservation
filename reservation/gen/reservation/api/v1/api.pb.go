@@ -870,7 +870,7 @@ const file_api_proto_rawDesc = "" +
 	"\x12ReleaseReservation\x12-.reservation.api.v1.ReleaseReservationRequest\x1a..reservation.api.v1.ReleaseReservationResponse\"\x99\x02\x92A\xe8\x01J\xe5\x01\n" +
 	"\adefault\x12\xd9\x01\"\xd6\x01\n" +
 	"\x10application/json\x12\xc1\x01{\"code\": 5, \"message\": \"Not Found\", \"details\": [{\"@type\": \"type.googleapis.com/google.rpc.ResourceInfo\", \"resourceType\": \"reservation.v1.ReservationService\", \"resourceName\": \"GetReservation\"}]}\x82\xd3\xe4\x93\x02'*%/api/v1/reservations/{reservation_id}\x12\xba\x01\n" +
-	"\x19UpdateReservationDuration\x124.reservation.api.v1.UpdateReservationDurationRequest\x1a5.reservation.api.v1.UpdateReservationDurationResponse\"0\x82\xd3\xe4\x93\x02*:\x01*2%/api/v1/reservations/{reservation_id}BIZGgithub.com/arsen/fleet-reservation/reservation/gen/reservation/api/v1;reservationv1b\x06proto3"
+	"\x19UpdateReservationDuration\x124.reservation.api.v1.UpdateReservationDurationRequest\x1a5.reservation.api.v1.UpdateReservationDurationResponse\"0\x82\xd3\xe4\x93\x02*:\x01*2%/api/v1/reservations/{reservation_id}BUZSgithub.com/arsen/fleet-reservation/reservation/gen/reservation/api/v1;reservationv1b\x06proto3"
 
 var (
 	file_api_proto_rawDescOnce sync.Once

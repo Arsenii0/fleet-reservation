@@ -14,5 +14,6 @@ type CoreApplicationPort interface {
 	ReleaseReservation(ctx context.Context, reservationId uuid.UUID) error
 	UpdateReservationStatusRequest(ctx context.Context, request kafkaevents.InstanceStatusUpdate) error
 	ListAllReservations(ctx context.Context) ([]*domain.Reservation, error)
+	ListResources(ctx context.Context) ([]domain.Resource, error)
 	CleanUpReservation(ctx context.Context, reservationId uuid.UUID) error
 }

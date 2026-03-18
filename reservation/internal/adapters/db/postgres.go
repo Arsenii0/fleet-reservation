@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -37,6 +38,12 @@ type ReservationResource struct {
 	UserConfig            json.RawMessage `gorm:"type:jsonb"`
 }
 
+type Resource struct {
+	ResourceID      uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	Name            string    `gorm:"uniqueIndex;not null"`
+	OperatingSystem string    `gorm:"not null"`
+}
+
 func NewDBAdapter(dsn string) (*Adapter, error) {
 	db, openErr := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if openErr != nil {
@@ -46,7 +53,9 @@ func NewDBAdapter(dsn string) (*Adapter, error) {
 	if errExt != nil {
 		return nil, fmt.Errorf("%w: %v", domain.ErrDBExtension, errExt)
 	}
-
+	if err := db.AutoMigrate(&Reservation{}, &ReservationResource{}, &Resource{}); err != nil {
+		return nil, fmt.Errorf("%w: auto-migrate failed: %v", domain.ErrDBConnection, err)
+	}
 	return &Adapter{orm: db}, nil
 }
 
@@ -165,4 +174,33 @@ func (sa Adapter) List(ctx context.Context) ([]*domain.Reservation, error) {
 		reservations = append(reservations, &reservation)
 	}
 	return reservations, res.Error
+}
+
+func (sa Adapter) ListResources(ctx context.Context) ([]domain.Resource, error) {
+	var entities []Resource
+	if err := sa.orm.WithContext(ctx).Find(&entities).Error; err != nil {
+		return nil, err
+	}
+	resources := make([]domain.Resource, len(entities))
+	for i, e := range entities {
+		resources[i] = domain.Resource{ID: e.ResourceID, Name: e.Name, OperatingSystem: e.OperatingSystem}
+	}
+	return resources, nil
+}
+
+// EnsureResource creates a resource with the given name if it doesn't exist yet, and returns it.
+func (sa Adapter) EnsureResource(ctx context.Context, name, operatingSystem string) (domain.Resource, error) {
+	var entity Resource
+	err := sa.orm.WithContext(ctx).Where("name = ?", name).First(&entity).Error
+	if err == nil {
+		return domain.Resource{ID: entity.ResourceID, Name: entity.Name, OperatingSystem: entity.OperatingSystem}, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.Resource{}, err
+	}
+	entity = Resource{ResourceID: uuid.New(), Name: name, OperatingSystem: operatingSystem}
+	if err := sa.orm.WithContext(ctx).Create(&entity).Error; err != nil {
+		return domain.Resource{}, err
+	}
+	return domain.Resource{ID: entity.ResourceID, Name: entity.Name, OperatingSystem: entity.OperatingSystem}, nil
 }
