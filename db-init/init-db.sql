@@ -13,3 +13,7 @@ CREATE TABLE IF NOT EXISTS resources (
 INSERT INTO resources (name, operating_system)
     VALUES ('OpenClaw', 'Ubuntu 24.04')
     ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO resources (name, operating_system)
+    VALUES ('VNC', 'Ubuntu 24.04')
+    ON CONFLICT (name) DO NOTHING;

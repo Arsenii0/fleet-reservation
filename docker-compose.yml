@@ -1,3 +1,5 @@
+name: fleet
+
 services:
   reservation:
     image: golang:1.25
