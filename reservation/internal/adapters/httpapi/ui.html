@@ -150,6 +150,7 @@
                   <span class="badge status-${r.status} ms-1">${r.status}</span>
                   <div class="mt-1 small">${summary}</div>
                   <small class="text-muted">Duration: ${dur} · Created: ${ts}</small>
+                  ${instanceRows(r.resources || [])}
                 </div>
                 ${canRel ? `<button class="btn btn-sm btn-outline-danger flex-shrink-0" onclick="releaseReservation('${r.id}')">Release</button>` : ''}
               </div>
@@ -163,6 +164,23 @@
     }
 
     /* ── Helpers ── */
+    function instanceRows(resources) {
+      const deployed = resources.filter(r => r.ip_address);
+      if (!deployed.length) return '';
+      const rows = deployed.map(r => `
+        <tr>
+          <td><code class="small">${r.resource_name || r.resource_id.substring(0,8)}</code></td>
+          <td><code class="small">${r.ip_address}</code></td>
+          <td><code class="small">${r.username || '—'}</code></td>
+          <td><code class="small">${r.password || '—'}</code></td>
+        </tr>`).join('');
+      return `<div class="mt-2">
+        <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem">
+          <thead class="table-light"><tr><th>Resource</th><th>IP</th><th>Username</th><th>Password</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    }
+
     function summarise(resources) {
       const m = {};
       for (const r of resources) {
