@@ -2,6 +2,10 @@
 
 Reservation microservice — creates, tracks, and releases compute instances via gRPC and Kafka.
 
+# TODO ArsenP
+
+Integrate with the actual terraform deployment
+
 ## Run
 
 **1. Generate protobuf** (re-run when `protobuf/api.proto` changes):

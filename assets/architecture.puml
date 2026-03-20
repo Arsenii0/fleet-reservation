@@ -1,0 +1,108 @@
+@startuml "Fleet — System Architecture"
+
+!theme plain
+top to bottom direction
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName  "Arial"
+skinparam defaultFontSize  11
+skinparam roundCorner      12
+skinparam ArrowThickness   1.8
+skinparam ArrowColor       #455A64
+skinparam shadowing        false
+skinparam nodesep          50
+skinparam ranksep          55
+
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor     #90A4AE
+  BorderThickness 1.5
+  FontSize        11
+}
+skinparam database {
+  BackgroundColor #E3F2FD
+  BorderColor     #1565C0
+  FontColor       #0D47A1
+}
+skinparam queue {
+  BackgroundColor #FFF8E1
+  BorderColor     #F9A825
+  FontColor       #BF360C
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor     #F9A825
+  FontSize        10
+}
+
+' ════════════════════════════════════════════════════════════════════════════
+' MAIN RUNTIME FLOW
+' ════════════════════════════════════════════════════════════════════════════
+
+actor "User / Engineer" as User
+
+rectangle "HTTP Adapter\n<size:9>REST · localhost:8080  ·  Web UI</size>" as HTTP  #E8EAF6
+rectangle "gRPC Adapter\n<size:9>ReserveReservation\nReleaseReservation</size>"    as GRPC  #E8EAF6
+
+rectangle "**Reservation Service**\n<size:9>CreateReservation · ReleaseReservation\nUpdateStatus · ListResources</size>" as RS #BBDEFB
+database  "PostgreSQL\n<size:9>Reservations · Resources\nStatus · Credentials</size>" as PG #E3F2FD
+
+queue "Apache Kafka\n<size:9>reserve-resource-request  ·  release-instances-request\nupdate-reservation-instance-state</size>" as Kafka #FFF8E1
+
+rectangle "**Fleet Deployer**\n<size:9>DeploymentCoordinator\nspawns one Worker goroutine\nper resource instance</size>" as FD #C8E6C9
+
+rectangle "**Cloud Plugins**\n<size:9>Deployer interface — swappable\nper environment / resource type</size>" as Plugins #F3E5F5
+
+rectangle "AWS\n<size:9>Terraform\nEC2 + EIP</size>"          as AWS    #DCEDC8
+rectangle "Azure\n<size:9>Terraform\nVM + NIC</size>"         as Azure  #DCEDC8
+rectangle "ESXi\n<size:9>vSphere API\nOn-Prem VM</size>"      as ESXi   #DCEDC8
+rectangle "On-Prem\n<size:9>Custom plugin\nbare-metal</size>" as OnPrem #DCEDC8
+
+User    -right-> HTTP   : browser
+HTTP    -right-> GRPC   : HTTP → gRPC
+GRPC    -right-> RS     : Reserve / Release
+RS      -down->  PG     : persist state
+RS      -down->  Kafka  : <color:#BF360C>①</color> ReserveResourceRequest\n<color:#BF360C>②</color> ReleaseInstancesRequest
+Kafka   -down->  FD     : consume requests
+FD      -right-> Plugins : Worker.Deploy()\nWorker.Release()
+Plugins -right-> AWS
+Plugins -right-> Azure
+Plugins -right-> ESXi
+Plugins -right-> OnPrem
+
+AWS    -up[#2196F3]--> Kafka : status + credentials
+Azure  -up[#2196F3]--> Kafka
+ESXi   -up[#2196F3]--> Kafka
+OnPrem -up[#2196F3]--> Kafka
+Kafka  -left[#2196F3]--> RS  : <color:#1565C0>③</color> InstanceStatusUpdate\n<color:#1565C0>{ip · username · password}</color>
+
+note right of Kafka
+  <b>Message flow
+  ① Reserve  →  deployer spins up instances
+  ② Release  →  deployer tears down instances
+  ③ Status   ←  deployer reports IP + credentials
+end note
+
+' ════════════════════════════════════════════════════════════════════════════
+' ANSIBLE IMAGE PIPELINE  (separate, offline concern)
+' ════════════════════════════════════════════════════════════════════════════
+
+package "  Ansible Image Pipeline  ·  offline / pre-built  " as AnsiblePkg #FFFDE7 {
+
+  rectangle "Ansible\nPlaybooks\n<size:9>per resource type</size>" as AnsiblePlay #FFF59D
+  rectangle "Pre-built Images\n<size:9>AMIs  ·  VM Templates\nOpenClaw  ·  VNC  ·  custom</size>" as Images #FFF59D
+
+  AnsiblePlay -right-> Images : bake\n<size:9>no runtime installs</size>
+}
+
+Images .down[#9E9E9E].> AWS    : AMI id
+Images .down[#9E9E9E].> Azure  : VM image
+Images .down[#9E9E9E].> ESXi   : template
+Images .down[#9E9E9E].> OnPrem : disk image
+
+note bottom of AnsiblePkg
+  Run once, stored in an image registry.
+  Workers pass the image ID at deploy time.
+  Boot time: ~5 min (runtime install)  →  ~30 sec (pre-built).
+end note
+
+@enduml

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Reservation Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    code { font-size: 0.8em; }
+    .status-Pending    { background-color: #6c757d !important; }
+    .status-Reserving  { background-color: #ffc107 !important; color: #000 !important; }
+    .status-Reserved   { background-color: #198754 !important; }
+    .status-Failed     { background-color: #dc3545 !important; }
+    .status-Releasing  { background-color: #0dcaf0 !important; color: #000 !important; }
+    .status-Closed     { background-color: #343a40 !important; }
+    .status-CleaningUp { background-color: #6c757d !important; }
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-dark px-4 mb-4">
+    <span class="navbar-brand fw-bold">Fleet Reservation Manager</span>
+    <small class="text-secondary" id="refresh-ts"></small>
+  </nav>
+
+  <div class="container">
+    <div class="row g-4">
+
+      <!-- New Reservation Panel -->
+      <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-semibold">New Reservation</div>
+          <div class="card-body d-flex flex-column">
+            <p id="res-loading" class="text-muted">Loading resources…</p>
+            <div id="res-form" style="display:none" class="flex-grow-1 d-flex flex-column">
+              <div id="resource-rows" class="mb-3"></div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Duration (hours)</label>
+                <input type="number" id="duration" class="form-control" min="1" max="720" value="4">
+              </div>
+              <button class="btn btn-primary mt-auto" onclick="createReservation()">Reserve</button>
+              <div id="res-error"   class="alert alert-danger  mt-2 py-1 small" style="display:none"></div>
+              <div id="res-success" class="alert alert-success mt-2 py-1 small" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reservations List -->
+      <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Reservations</h5>
+          <button class="btn btn-sm btn-outline-secondary" onclick="loadReservations()">↻ Refresh</button>
+        </div>
+        <div id="rlist">Loading…</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let allResources = [];
+
+    /* ── Resources ── */
+    async function loadResources() {
+      try {
+        const r = await fetch('/api/resources');
+        allResources = await r.json();
+        const box = document.getElementById('resource-rows');
+        if (!allResources || allResources.length === 0) {
+          box.innerHTML = '<p class="text-muted small">No resources available.</p>';
+        } else {
+          box.innerHTML = allResources.map(r => `
+            <div class="d-flex align-items-center justify-content-between mb-2 p-2 bg-white rounded border">
+              <div>
+                <div class="fw-semibold">${r.name}</div>
+                <small class="text-muted">${r.operating_system}</small>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">Count:</span>
+                <input type="number" id="cnt-${r.id}" class="form-control form-control-sm text-center"
+                       min="0" max="50" value="0" style="width:65px">
+              </div>
+            </div>`).join('');
+        }
+        document.getElementById('res-loading').style.display = 'none';
+        document.getElementById('res-form').style.display = '';
+      } catch (e) {
+        document.getElementById('res-loading').textContent = 'Failed to load resources: ' + e.message;
+      }
+    }
+
+    /* ── Create ── */
+    async function createReservation() {
+      const resources = allResources
+        .map(r => ({ resource_id: r.id, count: parseInt(document.getElementById(`cnt-${r.id}`).value) || 0 }))
+        .filter(r => r.count > 0);
+      if (!resources.length) { showErr('Select at least one resource with count > 0.'); return; }
+      const dh = parseInt(document.getElementById('duration').value);
+      if (!dh || dh < 1) { showErr('Enter a valid duration (hours).'); return; }
+      hideMsg();
+      try {
+        const resp = await fetch('/api/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resources, duration_hours: dh }),
+        });
+        if (!resp.ok) { showErr(await resp.text()); return; }
+        allResources.forEach(r => { document.getElementById(`cnt-${r.id}`).value = 0; });
+        const ok = document.getElementById('res-success');
+        ok.textContent = 'Reservation created! Deploying instances…';
+        ok.style.display = '';
+        setTimeout(() => ok.style.display = 'none', 4000);
+        loadReservations();
+      } catch (e) { showErr(e.message); }
+    }
+
+    /* ── Release ── */
+    async function releaseReservation(id) {
+      try {
+        await fetch(`/api/reservations/${id}/release`, { method: 'POST' });
+        loadReservations();
+      } catch (e) { alert('Release failed: ' + e.message); }
+    }
+
+    /* ── List ── */
+    async function loadReservations() {
+      try {
+        const r  = await fetch('/api/reservations');
+        const rs = await r.json();
+        const el = document.getElementById('rlist');
+        if (!rs || !rs.length) {
+          el.innerHTML = '<p class="text-muted">No reservations yet. Create one on the left.</p>';
+          return;
+        }
+        rs.sort((a, b) => {
+          const active = s => s !== 'Closed' && s !== 'Failed';
+          if (active(a.status) !== active(b.status)) return active(b.status) - active(a.status);
+          return b.created_at - a.created_at;
+        });
+        el.innerHTML = rs.map(r => {
+          const canRel  = r.status === 'Reserved' || r.status === 'Failed';
+          const dur     = fmtDur(r.duration);
+          const ts      = new Date(r.created_at * 1000).toLocaleString();
+          const summary = summarise(r.resources || []);
+          return `<div class="card shadow-sm mb-2">
+            <div class="card-body py-2 px-3">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="flex-grow-1 overflow-hidden">
+                  <code class="text-break">${r.id}</code>
+                  <span class="badge status-${r.status} ms-1">${r.status}</span>
+                  <div class="mt-1 small">${summary}</div>
+                  <small class="text-muted">Duration: ${dur} · Created: ${ts}</small>
+                  ${instanceRows(r.resources || [])}
+                </div>
+                ${canRel ? `<button class="btn btn-sm btn-outline-danger flex-shrink-0" onclick="releaseReservation('${r.id}')">Release</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+        document.getElementById('refresh-ts').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        document.getElementById('rlist').innerHTML = '<p class="text-danger">Failed to load reservations.</p>';
+      }
+    }
+
+    /* ── Helpers ── */
+    function instanceRows(resources) {
+      const deployed = resources.filter(r => r.ip_address);
+      if (!deployed.length) return '';
+      const rows = deployed.map(r => `
+        <tr>
+          <td><code class="small">${r.resource_name || r.resource_id.substring(0,8)}</code></td>
+          <td><code class="small">${r.ip_address}</code></td>
+          <td><code class="small">${r.username || '—'}</code></td>
+          <td><code class="small">${r.password || '—'}</code></td>
+        </tr>`).join('');
+      return `<div class="mt-2">
+        <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem">
+          <thead class="table-light"><tr><th>Resource</th><th>IP</th><th>Username</th><th>Password</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    }
+
+    function summarise(resources) {
+      const m = {};
+      for (const r of resources) {
+        const key = r.resource_name || r.resource_id.substring(0, 8);
+        if (!m[key]) m[key] = { total: 0, states: {} };
+        m[key].total++;
+        const s = r.instance_state || 'Unknown';
+        m[key].states[s] = (m[key].states[s] || 0) + 1;
+      }
+      return Object.entries(m).map(([name, info]) => {
+        const detail = Object.entries(info.states).map(([s, n]) => `${n} ${s}`).join(', ');
+        return `<strong>${info.total}× ${name}</strong> <span class="text-muted">(${detail})</span>`;
+      }).join(' &nbsp;|&nbsp; ') || '<span class="text-muted">no resources</span>';
+    }
+
+    function fmtDur(s) {
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      return m ? `${h}h ${m}m` : `${h}h`;
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById('res-error');
+      el.textContent = msg; el.style.display = '';
+    }
+
+    function hideMsg() {
+      document.getElementById('res-error').style.display   = 'none';
+      document.getElementById('res-success').style.display = 'none';
+    }
+
+    /* ── Init ── */
+    loadResources();
+    loadReservations();
+    setInterval(loadReservations, 3000);
+  </script>
+</body>
+</html>
