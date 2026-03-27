@@ -13,6 +13,8 @@ func ConvertDomainReservationToReserveRequest(reservation *Reservation) kafkaeve
 			ReservationResourceIndex: r.ReservationResourceIndex,
 			ReservationID:            r.ReservationID,
 			ResourceID:               r.ResourceID,
+			ResourceName:             r.ResourceName,
+			Plugin:                   r.Plugin,
 			InstanceID:               r.InstanceID,
 			InstanceState:            r.InstanceState,
 			UserConfig:               r.UserConfig,
@@ -27,12 +29,17 @@ func ConvertDomainReservationToReserveRequest(reservation *Reservation) kafkaeve
 
 // ConvertToReleaseRequest builds the outgoing message sent to workers to terminate instances.
 func ConvertToReleaseRequest(reservation *Reservation) kafkaevents.ReleaseInstancesRequestMessage {
-	var instanceIDs []uuid.UUID
+	instances := make([]kafkaevents.InstanceReleaseInfo, 0, len(reservation.ReservationResources))
 	for _, res := range reservation.ReservationResources {
-		instanceIDs = append(instanceIDs, res.InstanceID)
+		if res.InstanceID != uuid.Nil {
+			instances = append(instances, kafkaevents.InstanceReleaseInfo{
+				InstanceID: res.InstanceID,
+				Plugin:     res.Plugin,
+			})
+		}
 	}
 	return kafkaevents.ReleaseInstancesRequestMessage{
 		AssociationID: reservation.ID,
-		InstanceIDs:   instanceIDs,
+		Instances:     instances,
 	}
 }

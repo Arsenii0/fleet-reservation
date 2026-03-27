@@ -25,6 +25,26 @@ func NewCoreApplication(dbPort ports.DBPort, producerPort ports.ResourceMessageS
 }
 
 func (app CoreApplication) CreateReservation(ctx context.Context, reservation domain.Reservation) (domain.Reservation, error) {
+	// Enrich each ReservationResource with the plugin and resource name from the resource table,
+	// so downstream messages and release requests carry the correct deployment metadata.
+        // TODO ArsenP : review this
+	if len(reservation.ReservationResources) > 0 {
+		resources, err := app.db.ListResources(ctx)
+		if err != nil {
+			return domain.Reservation{}, err
+		}
+		resourceByID := make(map[string]domain.Resource, len(resources))
+		for _, r := range resources {
+			resourceByID[r.ID.String()] = r
+		}
+		for i, rr := range reservation.ReservationResources {
+			if res, ok := resourceByID[rr.ResourceID.String()]; ok {
+				reservation.ReservationResources[i].Plugin = res.Plugin
+				reservation.ReservationResources[i].ResourceName = res.Name
+			}
+		}
+	}
+
 	// Add the reservation to the database
 	err := app.db.Add(ctx, &reservation)
 	if err != nil {
@@ -166,6 +186,8 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 			if res.InstanceState != request.InstanceState {
 				reservationResources[i].InstanceState = request.InstanceState
 				reservationResources[i].IPAddress = request.IPAddress
+				reservationResources[i].Username = request.Username
+				reservationResources[i].Password = request.Password
 				return reservationResources, nil
 			}
 			continue
@@ -176,6 +198,8 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 			if res.InstanceID == request.InstanceID {
 				reservationResources[i].InstanceState = request.InstanceState
 				reservationResources[i].IPAddress = request.IPAddress
+				reservationResources[i].Username = request.Username
+				reservationResources[i].Password = request.Password
 				return reservationResources, nil
 			}
 			continue
@@ -186,6 +210,8 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 			if res.InstanceID == request.InstanceID {
 				reservationResources[i].InstanceState = request.InstanceState
 				reservationResources[i].IPAddress = request.IPAddress
+				reservationResources[i].Username = request.Username
+				reservationResources[i].Password = request.Password
 				return reservationResources, nil
 			}
 			if res.InstanceID == uuid.Nil && emptyInstanceResource == nil {
@@ -198,6 +224,8 @@ func GetUpdatedReservationResources(reservationResources []domain.ReservationRes
 		emptyInstanceResource.InstanceState = request.InstanceState
 		emptyInstanceResource.InstanceID = request.InstanceID
 		emptyInstanceResource.IPAddress = request.IPAddress
+		emptyInstanceResource.Username = request.Username
+		emptyInstanceResource.Password = request.Password
 		return reservationResources, nil
 	}
 

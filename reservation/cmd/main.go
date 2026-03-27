@@ -36,6 +36,8 @@ func main() {
 	}
 	log.Println("connected to database")
 
+	seedResources(dbAdapter)
+
 	messageSender, err := message.NewResourceMessageSenderAdaptor(cfg.KafkaBrokers, cfg.ServiceName)
 	if err != nil {
 		log.Fatalf("Failed to create kafka producer. Error: %v", err)
@@ -113,6 +115,22 @@ func connectToDatabase() (*db.Adapter, error) {
 	}
 
 	return dbAdapter, nil
+}
+
+// seedResources ensures well-known resources exist with the correct plugin metadata.
+// Safe to call on every startup (upsert semantics).
+func seedResources(dbAdapter *db.Adapter) {
+	ctx := context.Background()
+	resources := []struct{ name, os, plugin string }{
+		{"OpenClaw", "Ubuntu 24.04", "terraform/openclaw-guardian"},
+	}
+	for _, r := range resources {
+		if _, err := dbAdapter.EnsureResource(ctx, r.name, r.os, r.plugin); err != nil {
+			log.Printf("Warning: failed to seed resource %q: %v", r.name, err)
+		} else {
+			log.Printf("Resource seeded: name=%q plugin=%q", r.name, r.plugin)
+		}
+	}
 }
 
 func createKafkaConsumer(cfg *config.AppConfig, apiApp *application.CoreApplication) *message.MessageListenerAdaptor {

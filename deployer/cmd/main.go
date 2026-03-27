@@ -7,9 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/arsen/fleet-reservation/fleet-deployer/config"
-	"github.com/arsen/fleet-reservation/fleet-deployer/internal/adapters/message"
-	"github.com/arsen/fleet-reservation/fleet-deployer/internal/core/worker"
+	"github.com/arsen/fleet-reservation/deployer/config"
+	"github.com/arsen/fleet-reservation/deployer/internal/adapters/message"
+	"github.com/arsen/fleet-reservation/deployer/internal/core/application"
+	"github.com/arsen/fleet-reservation/deployer/internal/core/ports"
+	tfplugin "github.com/arsen/fleet-reservation/deployer/internal/plugins/terraform"
 )
 
 func main() {
@@ -27,10 +29,16 @@ func main() {
 	}
 	defer statusSender.Close()
 
-	deployer := worker.NewStubDeployer()
-	coordinator := worker.NewDeploymentCoordinator(deployer, statusSender)
+	// Build the plugin registry.
+	// To add a new deployment backend (e.g. CloudFormation), implement ports.DeploymentPlugin
+	// and register it here under a unique type key (the part before "/" in the plugin string).
+	pluginRegistry := map[string]ports.DeploymentPlugin{
+		"terraform": &tfplugin.TerraformDeployer{},
+	}
 
-	listener, err := message.NewRequestListenerAdapter(cfg.KafkaBrokers, cfg.ServiceName, cfg.KafkaGroupID, coordinator)
+	manager := application.NewDeployerManager(pluginRegistry, statusSender)
+
+	listener, err := message.NewRequestListenerAdapter(cfg.KafkaBrokers, cfg.ServiceName, cfg.KafkaGroupID, manager)
 	if err != nil {
 		log.Fatalf("Failed to create request listener: %v", err)
 	}
@@ -40,9 +48,9 @@ func main() {
 
 	go listener.Run(ctx)
 
-	log.Printf("fleet-deployer started, listening on brokers: %v", cfg.KafkaBrokers)
+	log.Printf("deployer started, listening on brokers: %v", cfg.KafkaBrokers)
 
 	<-stopChan
-	log.Println("Shutting down fleet-deployer...")
+	log.Println("Shutting down deployer...")
 	cancel()
 }

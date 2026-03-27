@@ -69,20 +69,32 @@ services:
       timeout: 10s
       retries: 3
 
-  fleet-deployer:
-    image: golang:1.25
+  deployer:
+    build:
+      context: .
+      dockerfile: deployer/Dockerfile.service
     volumes:
       - .:/reservation
       - go-cache:/go/pkg/mod
+      - terraform-state:/var/lib/fleet-terraform
+      - terraform-plugin-cache:/terraform-plugin-cache
+      - ${HOME}/.aws:/root/.aws:ro
     working_dir: /reservation
     environment:
       - KAFKA_BROKERS=kafka:9092
       - SERVICE_NAME=fleet-deployer
       - KAFKA_GROUP_ID=FLEET_DEPLOYER_GROUP
-    command: go run fleet-deployer/cmd/main.go
+      - TF_PLUGIN_CACHE_DIR=/terraform-plugin-cache
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+    command: go run deployer/cmd/main.go
     depends_on:
       kafka:
         condition: service_healthy
 
 volumes:
   go-cache:
+  terraform-state:
+  terraform-plugin-cache:
