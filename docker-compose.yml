@@ -85,10 +85,14 @@ services:
       - SERVICE_NAME=fleet-deployer
       - KAFKA_GROUP_ID=FLEET_DEPLOYER_GROUP
       - TF_PLUGIN_CACHE_DIR=/terraform-plugin-cache
+      # AWS – set AWS_PROFILE to your SSO profile, or provide static keys
       - AWS_REGION=${AWS_REGION:-us-west-2}
+      - AWS_PROFILE=${AWS_PROFILE:-personal}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      # Required for the AWS SDK to honour SSO profiles from ~/.aws/config
+      - AWS_SDK_LOAD_CONFIG=1
     command: go run deployer/cmd/main.go
     depends_on:
       kafka:

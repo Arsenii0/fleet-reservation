@@ -60,6 +60,14 @@ func (m *DeployerManager) runDeploy(ctx context.Context, associationID uuid.UUID
 		return
 	}
 
+	// Notify reservation that deployment is in progress.
+	m.sendUpdate(ctx, kafkaevents.InstanceStatusUpdate{
+		AssociationID: associationID,
+		ResourceID:    resource.ResourceID,
+		InstanceID:    instanceID,
+		InstanceState: kafkaevents.InstanceStateDeploying,
+	})
+
 	result, err := plugin.Deploy(ctx, instanceID, module)
 
 	update := kafkaevents.InstanceStatusUpdate{
