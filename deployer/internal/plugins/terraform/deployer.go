@@ -9,18 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
 
 	"github.com/arsen/fleet-reservation/deployer/internal/core/ports"
 	"github.com/google/uuid"
 )
-
-// initMu serialises terraform init calls across all concurrent goroutines.
-// The shared plugin cache (TF_PLUGIN_CACHE_DIR) cannot be written by two
-// terraform processes simultaneously.
-
-// TODO ArsenP : figure out better approach
-var initMu sync.Mutex
 
 const (
 	terraformBaseDir = "/reservation/deployer/terraform"
@@ -52,13 +44,9 @@ func (d *TerraformDeployer) Deploy(ctx context.Context, instanceID uuid.UUID, mo
 	}
 
 	// Run init only when providers have not been installed yet.
-	// Serialised with initMu to prevent concurrent writes to the shared plugin cache.
 	if _, err := os.Stat(filepath.Join(instanceDir, ".terraform", "providers")); os.IsNotExist(err) {
 		log.Printf("[terraform] Running init for instance=%s module=%s", instanceID, module)
-		initMu.Lock()
-		initErr := runTerraform(ctx, instanceDir, "init", "-input=false")
-		initMu.Unlock()
-		if initErr != nil {
+		if initErr := runTerraform(ctx, instanceDir, "init", "-input=false"); initErr != nil {
 			return ports.DeployResult{}, fmt.Errorf("terraform init: %w", initErr)
 		}
 	}
@@ -86,10 +74,7 @@ func (d *TerraformDeployer) Destroy(ctx context.Context, instanceID uuid.UUID, m
 	// Re-init if providers are missing (covers instances that failed during deploy init).
 	if _, err := os.Stat(filepath.Join(instanceDir, ".terraform", "providers")); os.IsNotExist(err) {
 		log.Printf("[terraform] Re-initializing before destroy for instance=%s", instanceID)
-		initMu.Lock()
-		initErr := runTerraform(ctx, instanceDir, "init", "-input=false")
-		initMu.Unlock()
-		if initErr != nil {
+		if initErr := runTerraform(ctx, instanceDir, "init", "-input=false"); initErr != nil {
 			// Init failed — no AWS resources were ever created, just clean up the local dir.
 			log.Printf("[terraform] Init failed before destroy for instance=%s, removing local dir: %v", instanceID, initErr)
 			return os.RemoveAll(instanceDir)

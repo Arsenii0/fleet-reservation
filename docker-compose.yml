@@ -77,14 +77,12 @@ services:
       - .:/reservation
       - go-cache:/go/pkg/mod
       - terraform-state:/var/lib/fleet-terraform
-      - terraform-plugin-cache:/terraform-plugin-cache
       - ${HOME}/.aws:/root/.aws:ro
     working_dir: /reservation
     environment:
       - KAFKA_BROKERS=kafka:9092
       - SERVICE_NAME=fleet-deployer
       - KAFKA_GROUP_ID=FLEET_DEPLOYER_GROUP
-      - TF_PLUGIN_CACHE_DIR=/terraform-plugin-cache
       # AWS – set AWS_PROFILE to your SSO profile, or provide static keys
       - AWS_REGION=${AWS_REGION:-us-west-2}
       - AWS_PROFILE=${AWS_PROFILE:-personal}
@@ -101,4 +99,3 @@ services:
 volumes:
   go-cache:
   terraform-state:
-  terraform-plugin-cache:

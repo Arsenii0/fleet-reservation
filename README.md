@@ -24,6 +24,14 @@ Set the profile name in your environment so docker-compose picks it up:
 docker compose up
 ```
 
+**4. Open the UI:** [http://localhost:8080](http://localhost:8080)
+
+> **Note:** After a successful reservation, wait ~5 minutes before connecting via VNC — the Ubuntu desktop and VNC server are installed via EC2 user data on first boot.
+>
+> **TODO ArsenP:** Build an AMI with VNC pre-installed to eliminate the wait.
+>
+> **TODO ArsenP:** `vnc_allowed_cidr` is hardcoded to a single machine IP in `deployer/terraform/openclaw-guardian/variables.tf` — make it configurable via env/tfvars.
+
 ---
 
 ## Code layout
