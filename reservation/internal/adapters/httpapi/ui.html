@@ -171,12 +171,13 @@
         <tr>
           <td><code class="small">${r.resource_name || r.resource_id.substring(0,8)}</code></td>
           <td><code class="small">${r.ip_address}</code></td>
+          <td><code class="small">${r.ip_address}:5901</code></td>
           <td><code class="small">${r.username || '—'}</code></td>
           <td><code class="small">${r.password || '—'}</code></td>
         </tr>`).join('');
       return `<div class="mt-2">
         <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem">
-          <thead class="table-light"><tr><th>Resource</th><th>IP</th><th>Username</th><th>Password</th></tr></thead>
+          <thead class="table-light"><tr><th>Resource</th><th>IP</th><th>VNC</th><th>Username</th><th>Password</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>`;
     }

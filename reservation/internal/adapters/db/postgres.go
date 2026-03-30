@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/arsen/fleet-reservation/reservation/internal/core/domain"
-	"github.com/arsen/fleet-reservation/shared/kafkaevents"
 )
 
 type Adapter struct {
@@ -32,9 +31,13 @@ type ReservationResource struct {
 	ReservationResourceID uint64          `gorm:"primaryKey;autoIncrement"`
 	ReservationID         uuid.UUID       `gorm:"type:uuid;not null;foreignkey:ReservationID"`
 	ResourceID            uuid.UUID       `gorm:"type:uuid;not null"`
+	ResourceName          string          `gorm:"default:null"`
+	Plugin                string          `gorm:"default:null"`
 	InstanceID            uuid.UUID       `gorm:"type:uuid"`
 	InstanceState         string          `gorm:"not null"`
 	IPAddress             string          `gorm:"default:null"`
+	Username              string          `gorm:"default:null"`
+	Password              string          `gorm:"default:null"` // TODO ArsenP : store as secret
 	UserConfig            json.RawMessage `gorm:"type:jsonb"`
 }
 
@@ -42,6 +45,7 @@ type Resource struct {
 	ResourceID      uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	Name            string    `gorm:"uniqueIndex;not null"`
 	OperatingSystem string    `gorm:"not null"`
+	Plugin          string    `gorm:"default:null"`
 }
 
 func NewDBAdapter(dsn string) (*Adapter, error) {
@@ -76,8 +80,12 @@ func (sa Adapter) Add(ctx context.Context, reservation *domain.Reservation) erro
 
 		resources = append(resources, ReservationResource{
 			ResourceID:    resource.ResourceID,
+			ResourceName:  resource.ResourceName,
+			Plugin:        resource.Plugin,
 			InstanceState: string(resource.InstanceState),
 			IPAddress:     resource.IPAddress,
+			Username:      resource.Username,
+			Password:      resource.Password,
 			UserConfig:    userConfigJSON,
 		})
 	}
@@ -116,9 +124,13 @@ func (sa Adapter) Update(ctx context.Context, reservation *domain.Reservation) e
 			ReservationResourceID: resource.ReservationResourceIndex,
 			ReservationID:         resource.ReservationID,
 			ResourceID:            resource.ResourceID,
+			ResourceName:          resource.ResourceName,
+			Plugin:                resource.Plugin,
 			InstanceID:            resource.InstanceID,
 			InstanceState:         string(resource.InstanceState),
 			IPAddress:             resource.IPAddress,
+			Username:              resource.Username,
+			Password:              resource.Password,
 			UserConfig:            userConfigJSON,
 		})
 
@@ -154,23 +166,7 @@ func (sa Adapter) List(ctx context.Context) ([]*domain.Reservation, error) {
 	var reservations []*domain.Reservation
 
 	for _, reservationEntity := range reservationEntities {
-		var resources []domain.ReservationResource
-		for _, resource := range reservationEntity.ReservationResources {
-			resources = append(resources, domain.ReservationResource{
-				ReservationResourceIndex: resource.ReservationResourceID,
-				ReservationID:            resource.ReservationID,
-				ResourceID:               resource.ResourceID,
-				InstanceID:               resource.InstanceID,
-				InstanceState:            kafkaevents.InstanceState(resource.InstanceState), IPAddress: resource.IPAddress})
-		}
-		reservation := domain.Reservation{
-			ID:                   reservationEntity.ReservationID,
-			Status:               reservationEntity.Status,
-			ReservationResources: resources,
-			Duration:             reservationEntity.Duration,
-			CreatedAt:            reservationEntity.CreatedAt.Unix(),
-			StartTime:            reservationEntity.StartTime.Unix(),
-		}
+		reservation := sa.toDomainReservation(reservationEntity)
 		reservations = append(reservations, &reservation)
 	}
 	return reservations, res.Error
@@ -183,24 +179,28 @@ func (sa Adapter) ListResources(ctx context.Context) ([]domain.Resource, error) 
 	}
 	resources := make([]domain.Resource, len(entities))
 	for i, e := range entities {
-		resources[i] = domain.Resource{ID: e.ResourceID, Name: e.Name, OperatingSystem: e.OperatingSystem}
+		resources[i] = domain.Resource{ID: e.ResourceID, Name: e.Name, OperatingSystem: e.OperatingSystem, Plugin: e.Plugin}
 	}
 	return resources, nil
 }
 
-// EnsureResource creates a resource with the given name if it doesn't exist yet, and returns it.
-func (sa Adapter) EnsureResource(ctx context.Context, name, operatingSystem string) (domain.Resource, error) {
+// EnsureResource upserts a resource by name, setting/updating the plugin field.
+func (sa Adapter) EnsureResource(ctx context.Context, name, operatingSystem, plugin string) (domain.Resource, error) {
 	var entity Resource
 	err := sa.orm.WithContext(ctx).Where("name = ?", name).First(&entity).Error
 	if err == nil {
-		return domain.Resource{ID: entity.ResourceID, Name: entity.Name, OperatingSystem: entity.OperatingSystem}, nil
+		if entity.Plugin != plugin {
+			sa.orm.WithContext(ctx).Model(&entity).Update("plugin", plugin) //nolint:errcheck
+			entity.Plugin = plugin
+		}
+		return domain.Resource{ID: entity.ResourceID, Name: entity.Name, OperatingSystem: entity.OperatingSystem, Plugin: entity.Plugin}, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return domain.Resource{}, err
 	}
-	entity = Resource{ResourceID: uuid.New(), Name: name, OperatingSystem: operatingSystem}
+	entity = Resource{ResourceID: uuid.New(), Name: name, OperatingSystem: operatingSystem, Plugin: plugin}
 	if err := sa.orm.WithContext(ctx).Create(&entity).Error; err != nil {
 		return domain.Resource{}, err
 	}
-	return domain.Resource{ID: entity.ResourceID, Name: entity.Name, OperatingSystem: entity.OperatingSystem}, nil
+	return domain.Resource{ID: entity.ResourceID, Name: entity.Name, OperatingSystem: entity.OperatingSystem, Plugin: entity.Plugin}, nil
 }

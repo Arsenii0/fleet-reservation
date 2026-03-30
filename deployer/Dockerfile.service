@@ -1,0 +1,17 @@
+# Dev image for the deployer service.
+# Extends golang:1.25 with the Terraform CLI so the deployer can run
+# `terraform apply` / `terraform destroy` directly.
+FROM golang:1.25
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    unzip wget curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Terraform (pin to the same version used in openclaw-guardian/Dockerfile.deploy)
+ARG TERRAFORM_VERSION=1.14.6
+RUN wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
+    && unzip "terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
+    && mv terraform /usr/local/bin/ \
+    && rm "terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+
+WORKDIR /reservation

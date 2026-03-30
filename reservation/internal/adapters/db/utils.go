@@ -22,9 +22,13 @@ func (sa Adapter) toDomainReservation(reservation Reservation) domain.Reservatio
 			ReservationResourceIndex: resource.ReservationResourceID,
 			ReservationID:            resource.ReservationID,
 			ResourceID:               resource.ResourceID,
+			ResourceName:             resource.ResourceName,
+			Plugin:                   resource.Plugin,
 			InstanceID:               resource.InstanceID,
 			InstanceState:            kafkaevents.InstanceState(resource.InstanceState),
 			IPAddress:                resource.IPAddress,
+			Username:                 resource.Username,
+			Password:                 resource.Password,
 			UserConfig:               userConfig,
 		})
 	}

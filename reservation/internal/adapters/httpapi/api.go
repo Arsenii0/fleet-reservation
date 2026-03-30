@@ -126,23 +126,14 @@ func (h *HttpAdapter) listReservations(w http.ResponseWriter, r *http.Request) {
 	for i, rv := range reservations {
 		resResps := make([]reservationResourceResponse, len(rv.ReservationResources))
 		for j, rr := range rv.ReservationResources {
-			ip := rr.IPAddress
-
-			// TODO ArsenP : remove hardcoded username and password.
-			// Get username and password from the Deployment Response. Password should be a secret (AWS secret Manager)
-			username, password := "", ""
-			if ip != "" {
-				username = "ubuntu"
-				password = "fleet-" + rr.InstanceID.String()[:8]
-			}
 			resResps[j] = reservationResourceResponse{
 				ResourceID:    rr.ResourceID.String(),
 				ResourceName:  nameByID[rr.ResourceID.String()],
 				InstanceID:    rr.InstanceID.String(),
 				InstanceState: string(rr.InstanceState),
-				IPAddress:     ip,
-				Username:      username,
-				Password:      password,
+				IPAddress:     rr.IPAddress,
+				Username:      rr.Username,
+				Password:      rr.Password,
 			}
 		}
 		resp[i] = reservationResponse{

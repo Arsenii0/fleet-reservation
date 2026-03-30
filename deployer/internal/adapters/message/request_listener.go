@@ -7,7 +7,7 @@ import (
 	"log"
 
 	sarama "github.com/IBM/sarama"
-	"github.com/arsen/fleet-reservation/fleet-deployer/internal/core/worker"
+	"github.com/arsen/fleet-reservation/deployer/internal/core/ports"
 	"github.com/arsen/fleet-reservation/shared/kafka"
 	"github.com/arsen/fleet-reservation/shared/kafkaevents"
 )
@@ -18,13 +18,13 @@ type RequestListenerAdapter struct {
 	handler  *deployRequestHandler
 }
 
-func NewRequestListenerAdapter(brokers []string, serviceName string, groupID string, coordinator *worker.DeploymentCoordinator) (*RequestListenerAdapter, error) {
+func NewRequestListenerAdapter(brokers []string, serviceName string, groupID string, manager ports.DeployerManagerPort) (*RequestListenerAdapter, error) {
 	topics := []string{
 		kafkaevents.ReserveResourceRequestTopic,
 		kafkaevents.ReleaseInstancesRequestTopic,
 	}
 
-	handler := &deployRequestHandler{coordinator: coordinator}
+	handler := &deployRequestHandler{manager: manager}
 	consumer, err := kafka.NewKafkaConsumerAdapter(handler, serviceName, brokers, topics, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request listener: %w", err)
@@ -42,7 +42,7 @@ func (r *RequestListenerAdapter) Close() error {
 }
 
 type deployRequestHandler struct {
-	coordinator *worker.DeploymentCoordinator
+	manager ports.DeployerManagerPort
 }
 
 func (h *deployRequestHandler) HandleMessage(ctx context.Context, msg *sarama.ConsumerMessage) error {
@@ -54,7 +54,7 @@ func (h *deployRequestHandler) HandleMessage(ctx context.Context, msg *sarama.Co
 			return err
 		}
 		log.Printf("[listener] Received deploy request: association=%s resources=%d", req.AssociationID, len(req.Resources))
-		h.coordinator.HandleDeployRequest(ctx, req)
+		h.manager.HandleDeployRequest(ctx, req)
 
 	case kafkaevents.ReleaseInstancesRequestTopic:
 		var req kafkaevents.ReleaseInstancesRequestMessage
@@ -62,8 +62,8 @@ func (h *deployRequestHandler) HandleMessage(ctx context.Context, msg *sarama.Co
 			log.Printf("[listener] Failed to unmarshal ReleaseInstancesRequestMessage: %v", err)
 			return err
 		}
-		log.Printf("[listener] Received release request: association=%s instances=%d", req.AssociationID, len(req.InstanceIDs))
-		h.coordinator.HandleReleaseRequest(ctx, req)
+		log.Printf("[listener] Received release request: association=%s instances=%d", req.AssociationID, len(req.Instances))
+		h.manager.HandleReleaseRequest(ctx, req)
 
 	default:
 		log.Printf("[listener] Unknown topic: %s", msg.Topic)

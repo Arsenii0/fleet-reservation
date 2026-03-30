@@ -26,6 +26,8 @@ type Resource struct {
 	ID              uuid.UUID `json:"id"`
 	Name            string    `json:"name"`
 	OperatingSystem string    `json:"operating_system"`
+	// Plugin identifies the deployment method and module, e.g. "terraform/openclaw-guardian".
+	Plugin string `json:"plugin"`
 }
 
 // Instance represents a deployed compute instance.
@@ -58,12 +60,20 @@ type ReservationResource struct {
 	ReservationID uuid.UUID `json:"reservation_id"`
 	// ID of the resource.
 	ResourceID uuid.UUID `json:"resource_id"`
+	// ResourceName is the human-readable name of the resource (e.g. "OpenClaw").
+	ResourceName string `json:"resource_name"`
+	// Plugin identifies how to deploy/destroy this resource, e.g. "terraform/openclaw-guardian".
+	Plugin string `json:"plugin"`
 	// ID of the instance. Can be empty if the instance is not yet deployed.
 	InstanceID uuid.UUID `json:"instance_id"`
 	// Status of the instance. Can be empty if the instance is not yet deployed.
 	InstanceState kafkaevents.InstanceState `json:"instance_state"`
 	// IP address of the deployed instance. Empty until the instance is deployed.
 	IPAddress string `json:"ip_address"`
+	// Username for connecting to the deployed instance. Empty until deployed.
+	Username string `json:"username"`
+	// Password for connecting to the deployed instance. Empty until deployed.
+	Password string `json:"password"`
 	// Map of User configuration parameters for the resource.
 	UserConfig map[string]interface{} `json:"user_config"`
 }
